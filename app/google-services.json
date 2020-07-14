@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "619222256864",
+    "firebase_url": "https://verclam-distrib.firebaseio.com",
+    "project_id": "verclam-distrib",
+    "storage_bucket": "verclam-distrib.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:619222256864:android:f01ff871a994917f661485",
+        "android_client_info": {
+          "package_name": "com.verclamdistrib.woocomerce"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "619222256864-2qmiuv1i2jlf7k8np1kfohmc7100qipi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA7_40t8ocDXaRWo21ub4zTZ-gfRlYUt4o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "619222256864-2qmiuv1i2jlf7k8np1kfohmc7100qipi.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
