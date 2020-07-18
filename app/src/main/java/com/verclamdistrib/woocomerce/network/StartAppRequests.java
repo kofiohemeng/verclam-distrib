@@ -40,13 +40,13 @@ public class StartAppRequests {
     public StartAppRequests(Context context) {
         app = ((App) context.getApplicationContext());
     }
-    
-    
-    
+
+
+
     //*********** Contains all methods to Execute on Startup ********//
     
     public void StartRequests(){
-        
+
         RequestBanners();
         RequestAppSetting();
         RequestAllCategories(page_number);

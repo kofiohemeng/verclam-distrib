@@ -126,10 +126,17 @@ public class CategoryListAdapter_2 extends RecyclerView.Adapter<CategoryListAdap
 
             Fragment fragment;
     
-            if (isSubCategory  ||  categoriesList.get(getAdapterPosition()).getSub_categories() == 0) {
+            if (isSubCategory) {
+                categoryInfo.putInt("subCategoryID", categoriesList.get(getAdapterPosition()).getId());
+                categoryInfo.putInt("CategoryID", categoriesList.get(getAdapterPosition()).getParent());
                 // Navigate to Products Fragment
                 fragment = new Products();
-            } else {
+            }
+            else if (categoriesList.get(getAdapterPosition()).getSub_categories() == 0) {
+                // Navigate to Products Fragment
+                fragment = new Products();
+            }
+            else {
                 // Navigate to SubCategories Fragment
                 fragment = new SubCategories_2();
             }

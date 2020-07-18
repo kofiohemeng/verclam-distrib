@@ -2,6 +2,7 @@ package com.verclamdistrib.woocomerce.fragments;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.graphics.Color;
 import android.support.annotation.Nullable;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -11,6 +12,7 @@ import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,23 +20,28 @@ import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
-
+import com.jayfang.dropdownmenu.DropDownMenu;
+import com.jayfang.dropdownmenu.OnMenuSelectedListener;
 import com.verclamdistrib.woocomerce.R;
 
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
 import com.verclamdistrib.woocomerce.app.App;
 import com.verclamdistrib.woocomerce.constant.ConstantValues;
+import com.verclamdistrib.woocomerce.models.category_model.CategoryDetails;
 import com.verclamdistrib.woocomerce.models.product_filters_model.FilterDetails;
 import com.verclamdistrib.woocomerce.models.product_filters_model.PostFilters;
 import com.verclamdistrib.woocomerce.models.product_filters_model.ProductFilters;
@@ -62,6 +69,8 @@ public class All_Category_Products extends Fragment {
     boolean isSaleApplied = false;
     boolean isFeaturedApplied = false;
 
+    int maincategoryID;
+    int selectedSubCategoryID;
     int categoryID;
     String customerID;
     String order = "desc";
@@ -86,11 +95,12 @@ public class All_Category_Products extends Fragment {
     ProductAdapter productAdapter;
     List<ProductDetails> categoryProductsList;
     List<FilterDetails> productFiltersList;
+    List<CategoryDetails> subCategoriesList = new ArrayList<>();
 
     GridLayoutManager gridLayoutManager;
     LinearLayoutManager linearLayoutManager;
 
-
+    DropDownMenu subcategory_dropdown;
 
     @Override
     public void setUserVisibleHint(boolean isVisibleToUser) {
@@ -121,7 +131,12 @@ public class All_Category_Products extends Fragment {
 
 
         // Get CategoryID from bundle arguments
-        categoryID = getArguments().getInt("CategoryID");
+        maincategoryID = getArguments().getInt("CategoryID");
+        selectedSubCategoryID = getArguments().getInt("subCategoryID", 0);
+        categoryID = maincategoryID; // set All as default
+        if (selectedSubCategoryID != 0) {
+            categoryID = selectedSubCategoryID; // set selected category as default
+        }
 
         // Get the Customer's ID from SharedPreferences
         customerID = getActivity().getSharedPreferences("UserInfo", getContext().MODE_PRIVATE).getString("userID", "");
@@ -138,7 +153,7 @@ public class All_Category_Products extends Fragment {
         filterButton = (ToggleButton) rootView.findViewById(R.id.filterBtn);
         toggleLayoutView = (ToggleButton) rootView.findViewById(R.id.layout_toggleBtn);
         category_products_recycler = (RecyclerView) rootView.findViewById(R.id.products_recycler);
-
+        subcategory_dropdown = (DropDownMenu) rootView.findViewById(R.id.subcategory_dropdown);
 
         // Hide some of the Views
         emptyRecord.setVisibility(View.GONE);
@@ -377,9 +392,71 @@ public class All_Category_Products extends Fragment {
 
         toggleLayoutView.setChecked(false);
 
+
+
+        if (subCategoriesList.size() > 0) { // show dropdown
+            subcategory_dropdown.setVisibility(View.VISIBLE);
+
+            RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams)category_products_recycler.getLayoutParams();
+            params.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
+
+            category_products_recycler.setLayoutParams(params); //causes layout update
+
+            List<String> where = new ArrayList<String>();
+            where.add("All");
+            int selectedIndex = -1;
+            for (int i=0; i<subCategoriesList.size(); i++) {
+                if (subCategoriesList.get(i).getId() == selectedSubCategoryID) {
+                    selectedIndex = i;
+                }
+                where.add(subCategoriesList.get(i).getName());
+            }
+
+            String[] simpleArray = new String[ where.size() ];
+            where.toArray( simpleArray );
+
+            List<String[]> items = new ArrayList<>();
+            items.add(simpleArray);
+
+            subcategory_dropdown.setmMenuItems(items);
+
+            subcategory_dropdown.setmMenuCount(1);
+            subcategory_dropdown.setmShowCount(6);//Menu展开list数量太多是只显示的个数
+            subcategory_dropdown.setShowCheck(true);//是否显示展开list的选中项
+            subcategory_dropdown.setmMenuTitleTextSize(16);//Menu的文字大小
+            subcategory_dropdown.setmMenuTitleTextColor(Color.BLACK);//Menu的文字颜色
+            subcategory_dropdown.setmMenuListTextSize(16);//Menu展开list的文字大小
+            subcategory_dropdown.setmMenuListTextColor(Color.BLACK);//Menu展开list的文字颜色
+            subcategory_dropdown.setmMenuBackColor(Color.WHITE);//Menu的背景颜色
+            subcategory_dropdown.setmMenuPressedBackColor(Color.WHITE);//Menu按下的背景颜色
+            subcategory_dropdown.setmCheckIcon(R.drawable.ico_make);//Menu展开list的勾选图片
+            subcategory_dropdown.setmUpArrow(R.drawable.arrow_up);//Menu默认状态的箭头
+            subcategory_dropdown.setmDownArrow(R.drawable.arrow_down);//Menu按下状态的箭头
+
+            if (selectedIndex != -1) {
+                subcategory_dropdown.setDefaultMenuTitle(new String[]{subCategoriesList.get(selectedIndex).getName()});
+            }
+
+            subcategory_dropdown.setMenuSelectedListener(new OnMenuSelectedListener() {
+                @Override
+                public void onSelected(View listview, int rowIndex, int ColumnIndex) {
+                    setFilter(rowIndex);
+                }
+            });
+        }
         return rootView;
     }
 
+    private void setFilter(int rowIndex) {
+        if (rowIndex == 0) { // for all
+            categoryID = maincategoryID;
+        }
+        else { // for sub categories
+            categoryID = subCategoriesList.get(rowIndex-1).getId();
+        }
+        categoryProductsList.clear();
+        RequestCategoryProducts(pageNo);
+    }
 
 
     //*********** Switch RecyclerView's LayoutManager ********//

@@ -76,6 +76,8 @@ public class SplashScreen extends Activity {
         progressBar = (ProgressBar) findViewById(R.id.splash_loadingBar);
         rootView = progressBar;
 
+        //android.os.Debug.waitForDebugger();
+
         // Initializing StartAppRequests and PreferencesManager
         startAppRequests = new StartAppRequests(this);
         myAppPrefsManager = new MyAppPrefsManager(this);
@@ -95,7 +97,7 @@ public class SplashScreen extends Activity {
                 myTask = new MyTask();
                 myTask.execute();
             }
-        }, 3000);
+        }, 0);
         
     }
 
@@ -245,7 +247,7 @@ public class SplashScreen extends Activity {
                                     myTask = new MyTask();
                                     myTask.execute();
                                 }
-                            }, 3000);
+                            }, 0);
                         }
                     })
                     .show();

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.verclamdistrib.woocomerce.customs.CustomViewPager;
+import com.verclamdistrib.woocomerce.models.category_model.CategoryDetails;
 
 
 /**
@@ -89,6 +90,6 @@ public class ViewPagerCustomAdapter extends FragmentStatePagerAdapter {
         // Add the Title of a given Fragment to FragmentTitleList
         fragmentTitleList.add(title);
     }
-    
+
 }
 
