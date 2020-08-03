@@ -7,7 +7,9 @@ import android.support.annotation.Nullable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.Snackbar;
+import android.support.design.widget.TabLayout;
 import android.support.v4.app.Fragment;
+import android.support.v4.view.ViewPager;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -39,6 +41,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.verclamdistrib.woocomerce.adapters.ViewPagerCustomAdapter;
 import com.verclamdistrib.woocomerce.app.App;
 import com.verclamdistrib.woocomerce.constant.ConstantValues;
 import com.verclamdistrib.woocomerce.models.category_model.CategoryDetails;
@@ -100,7 +103,11 @@ public class All_Category_Products extends Fragment {
     GridLayoutManager gridLayoutManager;
     LinearLayoutManager linearLayoutManager;
 
-    DropDownMenu subcategory_dropdown;
+    // sub category tab bar layout
+    TabLayout subcategory_tabs;
+    ViewPager product_viewpager;
+    ViewPagerCustomAdapter viewPagerCustomAdapter;
+    int selectedTabIndex = 0;
 
     @Override
     public void setUserVisibleHint(boolean isVisibleToUser) {
@@ -116,7 +123,6 @@ public class All_Category_Products extends Fragment {
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         rootView = inflater.inflate(R.layout.f_products_vertical, container, false);
 
-
         if (getArguments() != null) {
             if (getArguments().containsKey("sortBy")) {
                 sortBy = getArguments().getString("sortBy", "date");
@@ -128,336 +134,351 @@ public class All_Category_Products extends Fragment {
                 isFeaturedApplied = getArguments().getBoolean("featured", false);
             }
         }
-
-
         // Get CategoryID from bundle arguments
         maincategoryID = getArguments().getInt("CategoryID");
         selectedSubCategoryID = getArguments().getInt("subCategoryID", 0);
         categoryID = maincategoryID; // set All as default
         if (selectedSubCategoryID != 0) {
-            categoryID = selectedSubCategoryID; // set selected category as default
+            //categoryID = selectedSubCategoryID; // set selected category as default
         }
-
         // Get the Customer's ID from SharedPreferences
         customerID = getActivity().getSharedPreferences("UserInfo", getContext().MODE_PRIVATE).getString("userID", "");
 
+        if (subCategoriesList.size() > 0) { // show dropdown
+            subcategory_tabs = (TabLayout) rootView.findViewById(R.id.subcategory_tabs);
+            product_viewpager = (ViewPager) rootView.findViewById(R.id.product_viewpager);
 
-        // Binding Layout Views
-        bottomBar = (LinearLayout) rootView.findViewById(R.id.bottomBar);
-        sortList = (LinearLayout) rootView.findViewById(R.id.sort_list);
-        sortListText = (TextView) rootView.findViewById(R.id.sort_text);
-        emptyRecord = (TextView) rootView.findViewById(R.id.empty_record);
-        progressBar = (ProgressBar) rootView.findViewById(R.id.loading_bar);
-        loadingProgress = (ProgressBar) rootView.findViewById(R.id.loading_progress);
-        removeFilterBtn = (ImageButton) rootView.findViewById(R.id.removeFilterBtn);
-        filterButton = (ToggleButton) rootView.findViewById(R.id.filterBtn);
-        toggleLayoutView = (ToggleButton) rootView.findViewById(R.id.layout_toggleBtn);
-        category_products_recycler = (RecyclerView) rootView.findViewById(R.id.products_recycler);
-        subcategory_dropdown = (DropDownMenu) rootView.findViewById(R.id.subcategory_dropdown);
+            subcategory_tabs.setVisibility(View.VISIBLE);
+            product_viewpager.setVisibility(View.VISIBLE);
 
-        // Hide some of the Views
-        emptyRecord.setVisibility(View.GONE);
-        progressBar.setVisibility(View.GONE);
-        loadingProgress.setVisibility(View.GONE);
+            bottomBar = (LinearLayout) rootView.findViewById(R.id.bottomBar);
+            sortList = (LinearLayout) rootView.findViewById(R.id.sort_list);
+            sortListText = (TextView) rootView.findViewById(R.id.sort_text);
+            emptyRecord = (TextView) rootView.findViewById(R.id.empty_record);
+            progressBar = (ProgressBar) rootView.findViewById(R.id.loading_bar);
+            loadingProgress = (ProgressBar) rootView.findViewById(R.id.loading_progress);
+            removeFilterBtn = (ImageButton) rootView.findViewById(R.id.removeFilterBtn);
+            filterButton = (ToggleButton) rootView.findViewById(R.id.filterBtn);
+            toggleLayoutView = (ToggleButton) rootView.findViewById(R.id.layout_toggleBtn);
+            category_products_recycler = (RecyclerView) rootView.findViewById(R.id.products_recycler);
 
+            // Hide some of the Views
+            emptyRecord.setVisibility(View.GONE);
+            progressBar.setVisibility(View.GONE);
+            loadingProgress.setVisibility(View.GONE);
+            bottomBar.setVisibility(View.GONE);
 
-        sortListText.setText(getString(R.string.Newest));
+            // Setup ViewPagerAdapter
+            setupViewPagerAdapter(subCategoriesList);
 
-        isGridView = true;
-        isFilterApplied = (isSaleApplied || isFeaturedApplied);
+            product_viewpager.setOffscreenPageLimit(0);
+            product_viewpager.setAdapter(viewPagerCustomAdapter);
 
-        toggleLayoutView.setChecked(isGridView);
-        filterButton.setChecked(isFilterApplied);
-        removeFilterBtn.setVisibility(isFilterApplied? View.VISIBLE : View.GONE);
+            // Add corresponding ViewPagers to TabLayouts
+            subcategory_tabs.setupWithViewPager(product_viewpager);
 
-
-        // Initialize CategoryProductsList
-        categoryProductsList = new ArrayList<>();
-        productFiltersList = new ArrayList<>();
-
-
-        // Initialize GridLayoutManager and LinearLayoutManager
-        gridLayoutManager = new GridLayoutManager(getContext(), 2);
-        linearLayoutManager = new LinearLayoutManager(getContext());
-
-
-        // Initialize the ProductAdapter for RecyclerView
-        productAdapter = new ProductAdapter(getContext(), categoryProductsList, false);
-
-
-        setRecyclerViewLayoutManager(isGridView);
-        category_products_recycler.setAdapter(productAdapter);
-
-
-        if (isFilterApplied) {
-            postFilters = new PostFilters();
-            postFilters.setOnSale(String.valueOf(isSaleApplied));
-            postFilters.setFeatured(String.valueOf(isFeaturedApplied));
-            postFilters.setMinPrice("0");
-            postFilters.setMaxPrice(ConstantValues.FILTER_MAX_PRICE);
-
-            loadingProgress.setVisibility(View.VISIBLE);
-
-            RequestFilteredProducts(pageNo, postFilters);
-
+            try {
+                subcategory_tabs.getTabAt(selectedTabIndex).select();
+            } catch (NullPointerException e) {
+                e.printStackTrace();
+            }
         }
         else {
-            postFilters = new PostFilters();
-            loadingProgress.setVisibility(View.VISIBLE);
+            // Binding Layout Views
+            bottomBar = (LinearLayout) rootView.findViewById(R.id.bottomBar);
+            sortList = (LinearLayout) rootView.findViewById(R.id.sort_list);
+            sortListText = (TextView) rootView.findViewById(R.id.sort_text);
+            emptyRecord = (TextView) rootView.findViewById(R.id.empty_record);
+            progressBar = (ProgressBar) rootView.findViewById(R.id.loading_bar);
+            loadingProgress = (ProgressBar) rootView.findViewById(R.id.loading_progress);
+            removeFilterBtn = (ImageButton) rootView.findViewById(R.id.removeFilterBtn);
+            filterButton = (ToggleButton) rootView.findViewById(R.id.filterBtn);
+            toggleLayoutView = (ToggleButton) rootView.findViewById(R.id.layout_toggleBtn);
+            category_products_recycler = (RecyclerView) rootView.findViewById(R.id.products_recycler);
 
-            // Request for Products of given Category based on PageNo.
-            RequestCategoryProducts(pageNo);
-        }
+            // Hide some of the Views
+            emptyRecord.setVisibility(View.GONE);
+            progressBar.setVisibility(View.GONE);
+            loadingProgress.setVisibility(View.GONE);
+            sortListText.setText(getString(R.string.Newest));
 
+            isGridView = false;
+            isFilterApplied = (isSaleApplied || isFeaturedApplied);
 
-        try {
-            // Initialize FilterDialog and Override its abstract methods
-
-            filterDialog = new FilterDialog(getContext(), productFiltersList, productFilters, postFilters) {
-                @Override
-                public void clearFilters() {
-                    // Clear Filters
-                    isFilterApplied = false;
-                    filterButton.setChecked(false);
-                    removeFilterBtn.setVisibility(View.GONE);
-                    postFilters = null;
-                    productFilters = null;
-                    categoryProductsList.clear();
-                    productAdapter.notifyDataSetChanged();
-                    loadingProgress.setVisibility(View.VISIBLE);
-                    new LoadMoreTask(pageNo, postFilters).execute();
-                    RequestFilters(postFilters);
-                }
-
-                @Override
-                public void applyFilters(PostFilters postFilterData) {
-                    // Apply Filters
-                    isFilterApplied = true;
-                    filterButton.setChecked(true);
-                    removeFilterBtn.setVisibility(View.VISIBLE);
-                    postFilters = postFilterData;
-                    categoryProductsList.clear();
-                    productAdapter.notifyDataSetChanged();
-                    loadingProgress.setVisibility(View.VISIBLE);
-                    new LoadMoreTask(pageNo, postFilters).execute();
-                    RequestFilters(postFilters);
-                }
-            };
-        }
-        catch (Exception e){
-            e.getCause();
-        }
+            toggleLayoutView.setChecked(isGridView);
+            filterButton.setChecked(isFilterApplied);
+            removeFilterBtn.setVisibility(isFilterApplied? View.VISIBLE : View.GONE);
 
 
-        // Request Server for Product Filters
-        RequestFilters(postFilters);
+            // Initialize CategoryProductsList
+            categoryProductsList = new ArrayList<>();
+            productFiltersList = new ArrayList<>();
 
 
-        // Handle the Scroll event of Product's RecyclerView
-        category_products_recycler.addOnScrollListener(new EndlessRecyclerViewScroll(bottomBar) {
-            @Override
-            public void onLoadMore(final int current_page) {
-
-                progressBar.setVisibility(View.VISIBLE);
-
-                if (isFilterApplied) {
-                    // Initialize LoadMoreTask to Load More Products from Server against some Filters
-                    loadMoreTask = new LoadMoreTask(current_page, postFilters);
-                } else {
-                    // Initialize LoadMoreTask to Load More Products from Server without Filters
-                    loadMoreTask = new LoadMoreTask(current_page, null);
-                }
-
-                // Execute AsyncTask LoadMoreTask to Load More Products from Server
-                loadMoreTask.execute();
-            }
-        });
-
-        productAdapter.notifyDataSetChanged();
+            // Initialize GridLayoutManager and LinearLayoutManager
+            gridLayoutManager = new GridLayoutManager(getContext(), 2);
+            linearLayoutManager = new LinearLayoutManager(getContext());
 
 
-        // Toggle RecyclerView's LayoutManager
-        toggleLayoutView.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                isGridView = isChecked;
-                setRecyclerViewLayoutManager(isGridView);
-            }
-        });
+            // Initialize the ProductAdapter for RecyclerView
+            productAdapter = new ProductAdapter(getContext(), categoryProductsList, false);
 
-
-        // Handle the Click event of Filter Button
-        filterButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-
-                if (isFilterApplied) {
-                    filterButton.setChecked(true);
-                    filterDialog.show();
-
-                } else {
-                    filterButton.setChecked(false);
-                    filterDialog.show();
-                }
-            }
-        });
-
-
-
-        sortList.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                final String[] sortArray = getResources().getStringArray(R.array.sortBy_array);
-
-                AlertDialog.Builder dialog = new AlertDialog.Builder(getActivity());
-                dialog.setCancelable(true);
-
-                dialog.setItems(sortArray, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int which) {
-
-                        String selectedText = sortArray[which];
-                        sortListText.setText(selectedText);
-
-
-                        if (selectedText.equalsIgnoreCase(sortArray[0])) {
-                            order = "asc";
-                            sortBy = "title";
-                        }
-                        else if (selectedText.equalsIgnoreCase(sortArray[1])) {
-                            order = "desc";
-                            sortBy = "title";
-                        }
-                        else if (selectedText.equalsIgnoreCase(sortArray[2])) {
-                            order = "desc";
-                            sortBy = "date";
-                        }
-                        else {
-                            order = "desc";
-                            sortBy = "date";
-                        }
-
-
-                        categoryProductsList.clear();
-                        productAdapter.notifyDataSetChanged();
-                        loadingProgress.setVisibility(View.VISIBLE);
-
-                        if(isFilterApplied){
-                            // Initialize LoadMoreTask to Load More Products from Server against some Filters
-                            RequestFilteredProducts(pageNo, postFilters);
-                        }
-                        else {
-                            // Initialize LoadMoreTask to Load More Products from Server without Filters
-                            RequestCategoryProducts(pageNo);
-                        }
-                        dialog.dismiss();
-
-
-                        // Handle the Scroll event of Product's RecyclerView
-                        category_products_recycler.addOnScrollListener(new EndlessRecyclerViewScroll(bottomBar) {
-                            @Override
-                            public void onLoadMore(final int current_page) {
-
-                                progressBar.setVisibility(View.VISIBLE);
-
-                                // Execute AsyncTask LoadMoreTask to Load More Products from Server
-                                loadMoreTask = new LoadMoreTask(current_page, postFilters);
-                                loadMoreTask.execute();
-                            }
-                        });
-
-                    }
-                });
-                dialog.show();
-            }
-        });
-
-
-        removeFilterBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                isFilterApplied = false;
-                filterButton.setChecked(false);
-                removeFilterBtn.setVisibility(View.GONE);
-                postFilters = null;
-                productFilters = null;
-                categoryProductsList.clear();
-                productAdapter.notifyDataSetChanged();
-                loadingProgress.setVisibility(View.VISIBLE);
-                new LoadMoreTask(pageNo, postFilters).execute();
-                RequestFilters(postFilters);
-            }
-        });
-
-
-        toggleLayoutView.setChecked(false);
-
-
-
-        if (subCategoriesList.size() > 0) { // show dropdown
-            subcategory_dropdown.setVisibility(View.VISIBLE);
 
             RelativeLayout.LayoutParams params = (RelativeLayout.LayoutParams)category_products_recycler.getLayoutParams();
             params.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
-
             category_products_recycler.setLayoutParams(params); //causes layout update
 
-            List<String> where = new ArrayList<String>();
-            where.add("All");
-            int selectedIndex = -1;
-            for (int i=0; i<subCategoriesList.size(); i++) {
-                if (subCategoriesList.get(i).getId() == selectedSubCategoryID) {
-                    selectedIndex = i;
-                }
-                where.add(subCategoriesList.get(i).getName());
+            setRecyclerViewLayoutManager(isGridView);
+            category_products_recycler.setAdapter(productAdapter);
+
+
+            if (isFilterApplied) {
+                postFilters = new PostFilters();
+                postFilters.setOnSale(String.valueOf(isSaleApplied));
+                postFilters.setFeatured(String.valueOf(isFeaturedApplied));
+                postFilters.setMinPrice("0");
+                postFilters.setMaxPrice(ConstantValues.FILTER_MAX_PRICE);
+
+                loadingProgress.setVisibility(View.VISIBLE);
+
+                RequestFilteredProducts(pageNo, postFilters);
+
+            }
+            else {
+                postFilters = new PostFilters();
+                loadingProgress.setVisibility(View.VISIBLE);
+
+                // Request for Products of given Category based on PageNo.
+                RequestCategoryProducts(pageNo);
             }
 
-            String[] simpleArray = new String[ where.size() ];
-            where.toArray( simpleArray );
 
-            List<String[]> items = new ArrayList<>();
-            items.add(simpleArray);
+            try {
+                // Initialize FilterDialog and Override its abstract methods
 
-            subcategory_dropdown.setmMenuItems(items);
+                filterDialog = new FilterDialog(getContext(), productFiltersList, productFilters, postFilters) {
+                    @Override
+                    public void clearFilters() {
+                        // Clear Filters
+                        isFilterApplied = false;
+                        filterButton.setChecked(false);
+                        removeFilterBtn.setVisibility(View.GONE);
+                        postFilters = null;
+                        productFilters = null;
+                        categoryProductsList.clear();
+                        productAdapter.notifyDataSetChanged();
+                        loadingProgress.setVisibility(View.VISIBLE);
+                        new LoadMoreTask(pageNo, postFilters).execute();
+                        RequestFilters(postFilters);
+                    }
 
-            subcategory_dropdown.setmMenuCount(1);
-            subcategory_dropdown.setmShowCount(6);//Menu展开list数量太多是只显示的个数
-            subcategory_dropdown.setShowCheck(true);//是否显示展开list的选中项
-            subcategory_dropdown.setmMenuTitleTextSize(16);//Menu的文字大小
-            subcategory_dropdown.setmMenuTitleTextColor(Color.BLACK);//Menu的文字颜色
-            subcategory_dropdown.setmMenuListTextSize(16);//Menu展开list的文字大小
-            subcategory_dropdown.setmMenuListTextColor(Color.BLACK);//Menu展开list的文字颜色
-            subcategory_dropdown.setmMenuBackColor(Color.WHITE);//Menu的背景颜色
-            subcategory_dropdown.setmMenuPressedBackColor(Color.WHITE);//Menu按下的背景颜色
-            subcategory_dropdown.setmCheckIcon(R.drawable.ico_make);//Menu展开list的勾选图片
-            subcategory_dropdown.setmUpArrow(R.drawable.arrow_up);//Menu默认状态的箭头
-            subcategory_dropdown.setmDownArrow(R.drawable.arrow_down);//Menu按下状态的箭头
-
-            if (selectedIndex != -1) {
-                subcategory_dropdown.setDefaultMenuTitle(new String[]{subCategoriesList.get(selectedIndex).getName()});
+                    @Override
+                    public void applyFilters(PostFilters postFilterData) {
+                        // Apply Filters
+                        isFilterApplied = true;
+                        filterButton.setChecked(true);
+                        removeFilterBtn.setVisibility(View.VISIBLE);
+                        postFilters = postFilterData;
+                        categoryProductsList.clear();
+                        productAdapter.notifyDataSetChanged();
+                        loadingProgress.setVisibility(View.VISIBLE);
+                        new LoadMoreTask(pageNo, postFilters).execute();
+                        RequestFilters(postFilters);
+                    }
+                };
+            }
+            catch (Exception e){
+                e.getCause();
             }
 
-            subcategory_dropdown.setMenuSelectedListener(new OnMenuSelectedListener() {
+            // Request Server for Product Filters
+            RequestFilters(postFilters);
+            productAdapter.notifyDataSetChanged();
+            toggleLayoutView.setChecked(isGridView);
+
+            // Handle the Scroll event of Product's RecyclerView
+            category_products_recycler.addOnScrollListener(new EndlessRecyclerViewScroll(bottomBar) {
                 @Override
-                public void onSelected(View listview, int rowIndex, int ColumnIndex) {
-                    setFilter(rowIndex);
+                public void onLoadMore(final int current_page) {
+                    loadMoreProducts(current_page);
+                }
+            });
+
+            // Toggle RecyclerView's LayoutManager
+            toggleLayoutView.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    isGridView = isChecked;
+                    setRecyclerViewLayoutManager(isGridView);
+                }
+            });
+
+            // Handle the Click event of Filter Button
+            filterButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    filter();
+                }
+            });
+            sortList.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    showSortDlg();
+                }
+            });
+            removeFilterBtn.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    removeFilter();
                 }
             });
         }
         return rootView;
     }
 
-    private void setFilter(int rowIndex) {
-        if (rowIndex == 0) { // for all
-            categoryID = maincategoryID;
-        }
-        else { // for sub categories
-            categoryID = subCategoriesList.get(rowIndex-1).getId();
-        }
-        categoryProductsList.clear();
-        RequestCategoryProducts(pageNo);
+    private void showSortDlg() {
+        final String[] sortArray = getResources().getStringArray(R.array.sortBy_array);
+
+        AlertDialog.Builder dialog = new AlertDialog.Builder(getActivity());
+        dialog.setCancelable(true);
+
+        dialog.setItems(sortArray, new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+
+                String selectedText = sortArray[which];
+                sortListText.setText(selectedText);
+
+                if (selectedText.equalsIgnoreCase(sortArray[0])) {
+                    order = "asc";
+                    sortBy = "title";
+                }
+                else if (selectedText.equalsIgnoreCase(sortArray[1])) {
+                    order = "desc";
+                    sortBy = "title";
+                }
+                else if (selectedText.equalsIgnoreCase(sortArray[2])) {
+                    order = "desc";
+                    sortBy = "date";
+                }
+                else {
+                    order = "desc";
+                    sortBy = "date";
+                }
+
+                categoryProductsList.clear();
+                productAdapter.notifyDataSetChanged();
+                loadingProgress.setVisibility(View.VISIBLE);
+
+                if(isFilterApplied){
+                    // Initialize LoadMoreTask to Load More Products from Server against some Filters
+                    RequestFilteredProducts(pageNo, postFilters);
+                }
+                else {
+                    // Initialize LoadMoreTask to Load More Products from Server without Filters
+                    RequestCategoryProducts(pageNo);
+                }
+                dialog.dismiss();
+
+                // Handle the Scroll event of Product's RecyclerView
+                category_products_recycler.addOnScrollListener(new EndlessRecyclerViewScroll(bottomBar) {
+                    @Override
+                    public void onLoadMore(final int current_page) {
+                        loadMoreProducts(current_page);
+                    }
+                });
+
+            }
+        });
+        dialog.show();
     }
 
+    private void filter() {
+        if (isFilterApplied) {
+            filterButton.setChecked(true);
+            filterDialog.show();
+
+        } else {
+            filterButton.setChecked(false);
+            filterDialog.show();
+        }
+    }
+
+    private void removeFilter() {
+        isFilterApplied = false;
+        filterButton.setChecked(false);
+        removeFilterBtn.setVisibility(View.GONE);
+        postFilters = null;
+        productFilters = null;
+        categoryProductsList.clear();
+        productAdapter.notifyDataSetChanged();
+        loadingProgress.setVisibility(View.VISIBLE);
+        new LoadMoreTask(pageNo, postFilters).execute();
+        RequestFilters(postFilters);
+    }
+
+    private void loadMoreProducts(int current_page) {
+        progressBar.setVisibility(View.VISIBLE);
+
+        if (isFilterApplied) {
+            // Initialize LoadMoreTask to Load More Products from Server against some Filters
+            loadMoreTask = new LoadMoreTask(current_page, postFilters);
+        } else {
+            // Initialize LoadMoreTask to Load More Products from Server without Filters
+            loadMoreTask = new LoadMoreTask(current_page, null);
+        }
+
+        // Execute AsyncTask LoadMoreTask to Load More Products from Server
+        loadMoreTask.execute();
+    }
+
+    //*********** Setup the ViewPagerAdapter ********//
+
+    private void setupViewPagerAdapter(List<CategoryDetails> subCategoriesList) {
+
+        // Initialize ViewPagerAdapter with ChildFragmentManager for ViewPager
+        viewPagerCustomAdapter = new ViewPagerCustomAdapter(getChildFragmentManager());
+
+        // Initialize All_Products Fragment with specified arguments
+        Fragment allProducts = new All_Category_Products();
+        Bundle bundleInfo = new Bundle();
+        bundleInfo.putInt("CategoryID", getArguments().getInt("CategoryID", 0));
+        bundleInfo.putBoolean("on_sale", isSaleApplied);
+        bundleInfo.putBoolean("featured", isFeaturedApplied);
+        allProducts.setArguments(bundleInfo);
+
+        // Add the Fragments to the ViewPagerAdapter with TabHeader
+        viewPagerCustomAdapter.addFragment(allProducts, getContext().getString(R.string.all));
+
+        for (int i=0;  i < subCategoriesList.size();  i++) {
+
+            // Initialize Category_Products Fragment with specified arguments
+            Fragment categoryProducts = new All_Category_Products();
+            Bundle categoryInfo = new Bundle();
+            categoryInfo.putBoolean("on_sale", isSaleApplied);
+            categoryInfo.putBoolean("featured", isFeaturedApplied);
+            categoryInfo.putInt("CategoryID", subCategoriesList.get(i).getId());
+
+            // from sub category image list
+            if (subCategoriesList.get(i).getId() == getArguments().getInt("CategoryID", 0)) {
+                categoryInfo.putInt("subCategoryID", getArguments().getInt("subCategoryID", 0));
+            }
+
+            categoryProducts.setArguments(categoryInfo);
+
+            ((All_Category_Products)categoryProducts).subCategoriesList = new ArrayList<>();
+
+            // Add the Fragments to the ViewPagerAdapter with TabHeader
+            viewPagerCustomAdapter.addFragment(categoryProducts, subCategoriesList.get(i).getName());
+
+            if (getArguments().containsKey("CategoryID")) {
+                //if (selectedTabText.equalsIgnoreCase(mainCategoriesList.get(i).getName()) && getArguments().getInt("CategoryID", 0) == mainCategoriesList.get(i).getId()) {
+                if (selectedSubCategoryID == subCategoriesList.get(i).getId()) {
+                    selectedTabIndex = i + 1;
+                }
+            }
+        }
+
+    }
 
     //*********** Switch RecyclerView's LayoutManager ********//
 

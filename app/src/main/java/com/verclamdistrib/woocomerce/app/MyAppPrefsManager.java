@@ -51,8 +51,8 @@ public class MyAppPrefsManager {
     }
     
     public String getUserLanguageCode() {
-        //return sharedPreferences.getString(USER_LANGUAGE_CODE, "fr");
-        return sharedPreferences.getString(USER_LANGUAGE_CODE, "en");
+        return sharedPreferences.getString(USER_LANGUAGE_CODE, "fr");
+        //return sharedPreferences.getString(USER_LANGUAGE_CODE, "en");
     }
     
     

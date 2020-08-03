@@ -165,7 +165,9 @@ public class Products extends Fragment {
 
             // from sub category image list
             if (mainCategoriesList.get(i).getId() == getArguments().getInt("CategoryID", 0)) {
-                categoryInfo.putInt("subCategoryID", getArguments().getInt("subCategoryID", 0));
+                if (getArguments().getInt("subCategoryID", 0) != 0) {
+                    categoryInfo.putInt("subCategoryID", getArguments().getInt("subCategoryID", 0));
+                }
             }
 
             categoryProducts.setArguments(categoryInfo);

@@ -176,8 +176,8 @@ public class Login extends AppCompatActivity implements GoogleApiClient.OnConnec
             }
         });
 
-        user_email.setText("ming@gmail.com");
-        user_password.setText("123456789");
+//        user_email.setText("tester@tester.com");
+//        user_password.setText("3f1F283j7cC*4AUEE94Lu*R8");
 
     }
     

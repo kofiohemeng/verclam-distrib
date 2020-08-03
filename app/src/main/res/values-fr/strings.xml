@@ -29,7 +29,7 @@
     <string name="actionLogout">DECONNECTION</string>
     <string name="address_info">AJOUTER ADDRESSE</string>
     <string name="download">TELECHARGER</string>
-    <string name="check_out">" Commander  "</string>
+    <string name="check_out">" Finaliser  "</string>
 
     <string name="homeStyle1"> HOME 1 </string>
     <string name="homeStyle2"> HOME 2 </string>
@@ -112,7 +112,7 @@
     <string name="facebook_login"> Facebook Login </string>
     <string name="in_stock">" En Stock "</string>
     <string name="outOfStock">" Plus de Stock "</string>
-    <string name="addToCart">" Ajouter au Panier "</string>
+    <string name="addToCart">" Commander "</string>
     <string name="removeProduct">" Supprimer Produit "</string>
     <string name="save_address">" Sauvegarder Addresse "</string>
     <string name="save_changes">" Sauvegarder Changements "</string>

@@ -525,27 +525,31 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:weightSum="2">
-    <Button
-        android:id="@+id/product_cart_btn"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="@string/addToCart"
-        android:textAllCaps="true"
-        android:textSize="16sp"
-        android:textColor="@color/white"
-        android:background="@color/colorAccent"/>
 
     <Button
         android:id="@+id/check_out_btn"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
+        android:background="@color/colorAccentGreen"
         android:text="@string/check_out"
         android:textAllCaps="true"
-        android:textSize="16sp"
         android:textColor="@color/white"
-        android:background="@color/colorAccentGreen"/>
+        android:textSize="16sp" />
+
+    <Button
+        android:id="@+id/product_cart_btn"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="@color/colorPrimary"
+        android:text="@string/addToCart"
+        android:textAllCaps="true"
+        android:textColor="@color/white"
+        android:textSize="16sp" />
+
+
+
 </LinearLayout>
 
 
